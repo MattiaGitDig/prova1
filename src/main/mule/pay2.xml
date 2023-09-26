@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<flow name="process_main_flow" doc:id="40a5e2ac-a425-4a2b-867d-f29ee282c8c9" >
+		<set-variable value="#[payload.Id]" doc:name="Save Salesforce record Ids in Id_expense variable" doc:id="c91170f3-e504-4ba8-a81c-6f6fc89954ee" variableName="Id_expense"/>
+		<ee:transform doc:name="Create Payout Items" doc:id="9f4617ff-3547-44e9-82c7-d6c83f2cc5a1" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+payload map (item) -> {
+        "recipient_type": "EMAIL",
+        "amount": {
+            "value": item.Amount,
+            "currency": "EUR"
+        },
+        "note": item.Id as String,
+        "receiver": item.Email,
+        "notification_language": "en-US"
+        }
+    
+
+]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<ee:transform doc:name="Create Payout Request Body + Header" doc:id="6245b4d0-e6b8-400f-8bc3-e503f3a3c6b6" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/json
+---
+{
+    "sender_batch_header": {
+    "email_subject": "You have a payout!",
+    "email_message": "You have received a payout! Thanks for using our service!"
+},
+	"items": payload}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[payload]" doc:name="Save Payload in backupPayload variable" doc:id="3b77defa-3ae0-425d-b54a-10ce48fdd745" variableName="backupPayload"/>
+		<flow-ref doc:name="to process_check_balance_flow" doc:id="f3aa9fd8-4486-4675-9bd6-058cc35bbab1" name="process_check_balance_flow"/>
+		<set-payload value="#[vars.backupPayload]" doc:name='"Reset" payload to the variable backupPayload' doc:id="b824c749-e758-4ba2-8b6e-53b869e5d046" />
+		<flow-ref doc:name="to system_req1_flow in System API" doc:id="ee88dfef-c06e-4d10-b0a6-805b597532df" name="system_req1_flow"/>
+	</flow>
+	<flow name="process_check_balance_flow" doc:id="98643545-05e4-4cff-b070-a0b8732aa465">
+		<set-variable value="#[sum(payload.items.amount.value) as Number]" doc:name="Sum all records' amounts in sumAmounts variable" doc:id="d2b2cf16-8590-432f-a2d8-51523f182117" variableName="sumAmounts"/>
+		<logger level="INFO" doc:name="Print sumAmounts variable" doc:id="1fa8e388-b72e-4107-88fd-57587910bb0d" message="#[vars.sumAmounts]"/>
+		<http:request method="GET" doc:name="Check Paypal Balance" doc:id="c69839bf-cce0-4aed-9208-985512eca48f" config-ref="HTTP_Request_getBalance_configuration" url="https://api-m.sandbox.paypal.com/v1/reporting/balances?currency_code=EUR">
+		</http:request>
+		<set-variable value="#[payload.balances.total_balance.value[0] as Number]" doc:name="Save Payapl Balance in the balance variable" doc:id="541c6054-f33d-42a4-bc90-85456c6818d8" variableName="balance"/>
+		<logger level="INFO" doc:name="Print balance variable" doc:id="28383c63-5e4a-493a-8bbd-ac5367b9d852" message="#[vars.balance]"/>
+		<validation:is-number numberType="DOUBLE" doc:name="Check if the balance is &gt;= of total Amount" doc:id="246de4f2-4f5d-464d-81e5-938dfd323380" value="#[vars.sumAmounts]" maxValue="#[vars.balance]" message="CUSTOM_ERROR:BALANCE_NOT_SUFFICIENT"/>
+		<logger level="INFO" doc:name='Print "balance is sufficient"' doc:id="fc08cee7-c22f-4710-bd79-805e0e683fb8" message="balance is sufficient" />
+	</flow>
+</mule>

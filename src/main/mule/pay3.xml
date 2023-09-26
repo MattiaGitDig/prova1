@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation"
+	xmlns:file="http://www.mulesoft.org/schema/mule/file" xmlns:email="http://www.mulesoft.org/schema/mule/email"
+	xmlns:salesforce="http://www.mulesoft.org/schema/mule/salesforce"
+	xmlns:batch="http://www.mulesoft.org/schema/mule/batch" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core" xmlns:http="http://www.mulesoft.org/schema/mule/http" xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="
+http://www.mulesoft.org/schema/mule/file http://www.mulesoft.org/schema/mule/file/current/mule-file.xsd http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/batch http://www.mulesoft.org/schema/mule/batch/current/mule-batch.xsd
+http://www.mulesoft.org/schema/mule/salesforce http://www.mulesoft.org/schema/mule/salesforce/current/mule-salesforce.xsd
+http://www.mulesoft.org/schema/mule/email http://www.mulesoft.org/schema/mule/email/current/mule-email.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<salesforce:sfdc-config name="Salesforce_Config" doc:name="Salesforce Config" doc:id="e88d902b-ccf5-4e21-9df9-edda5f8dd429" >
+		<salesforce:basic-connection username="proggettomule@gmail.com" password="mule2023" securityToken="GTqC7sNMIgQ69ujVfwRDW3Fc" />
+	</salesforce:sfdc-config>
+	<file:config name="File_Config" doc:name="File Config" doc:id="7f29a4d3-be55-4232-84c4-2c8278307f9b" />
+	<file:config name="File_Config1" doc:name="File Config" doc:id="2c344a96-a650-4766-b141-31c77bedc611" />
+	<email:smtp-config name="Email_SMTP" doc:name="Email SMTP" doc:id="9b725469-8511-4d15-a464-2149378563bc" >
+		<email:smtp-connection host="smtp.gmail.com" port="587" user="asia.scargiali@gmail.com" password="vfxyymzyuxwvpdxv" >
+			<email:properties >
+				<email:property key="mail.smtp.starttls.enable" value="true" />
+			</email:properties>
+		</email:smtp-connection>
+	</email:smtp-config>
+	<http:request-config name="HTTP_Request_getBalance_configuration" doc:name="HTTP Request configuration" doc:id="8fea1978-b51b-4e7f-b45c-8190f53e84d9" responseTimeout="3000">
+		<http:request-connection host="api-m.sandbox.paypal.com/v1/oauth2/token" protocol="HTTPS" connectionIdleTimeout="2000" maxConnections="20">
+			<http:authentication >
+				<http:basic-authentication username="Af-ko6Na0meNcUWdLabbrx6-OcLqhPpLl61AdI0X31V211n2p4t58ReaFhc4-6jwIK2bstaNmDaWbHCw" password="EOCh9DR1C9D0H8brGVNwjurikOjk8oy32IkdiPNavPD1j4I21MIj-uiYLmhXkJCmTBztWtgS169WW6GA" />
+			</http:authentication>
+		</http:request-connection>
+		<expiration-policy maxIdleTime="3000" timeUnit="MILLISECONDS" />
+	</http:request-config>
+	<http:request-config name="HTTP_Request_configuration1" doc:name="HTTP Request configuration" doc:id="750ab37b-33fe-40de-8693-141411a9f66b" responseTimeout="3000">
+		<http:request-connection protocol="HTTPS" host="api-m.sandbox.paypal.com" >
+			<http:authentication >
+				<http:basic-authentication username="Af-ko6Na0meNcUWdLabbrx6-OcLqhPpLl61AdI0X31V211n2p4t58ReaFhc4-6jwIK2bstaNmDaWbHCw" password="EOCh9DR1C9D0H8brGVNwjurikOjk8oy32IkdiPNavPD1j4I21MIj-uiYLmhXkJCmTBztWtgS169WW6GA"/>
+			</http:authentication>
+		</http:request-connection>
+	</http:request-config>
+	<flow name="system_req1_flow" doc:id="2ebd0e07-82a3-4a67-9cf7-d5f62e664f03" >
+		<http:request doc:name="Perform Payouts" doc:id="a767a7c2-fe42-4c89-914c-3c5c7c4c18da" config-ref="HTTP_Request_configuration1" method="POST" url="https://api-m.sandbox.paypal.com/v1/payments/payouts" requestStreamingMode="NEVER">
+		</http:request>
+		<set-variable doc:name="Save Payouts batc_id" doc:id="ceb5be44-be7e-4ac8-a917-911892edb24b" variableName="header" value='#[payload.batch_header.payout_batch_id]'/>
+		<until-successful maxRetries="1000" doc:name="call flow until it has no error" doc:id="03ec85d4-a1cf-42db-95a2-3931c49649ef" millisBetweenRetries="500">
+			<flow-ref doc:name="system_req2_flow" doc:id="2a099b0e-6ccb-4e25-af71-9918a7060eb9" name="system_req2_flow" />
+		</until-successful>
+	</flow>
+	<flow name="system_req2_flow" doc:id="d5632ebb-413b-4eae-8c5e-120446988fed" >
+		<http:request method="GET" doc:name="Check Payments Status" doc:id="2a2e7432-3d49-450f-aab3-a34ac94a953e" config-ref="HTTP_Request_configuration1" path='#["/v1/payments/payouts/"++ vars.header as String]'/>
+		<validation:is-true doc:name="Status != success raise Error" doc:id="c859c2b5-7e91-43bc-acfd-d19cf5753aff" expression='#[payload.batch_header.batch_status == "SUCCESS"]' message="CUSTOM_ERROR:NOT SUCCESS YET, RETRYING"/>
+		<flow-ref doc:name="system_update_salesforce" doc:id="08b82c9b-389a-47b2-b74d-8e333f748866" name="system_update_salesforce" />
+	</flow>
+	<flow name="system_update_salesforce" doc:id="7a08dbbc-3826-4208-aba7-595274499b35" >
+		<ee:transform doc:name="Id &amp; Orario" doc:id="0bdc5040-7ba6-44bd-8704-f3ff4e160851" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+payload.items map (item) -> {
+	
+	Id: item.payout_item.note,
+	Orario: item.time_processed,
+	
+	}]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<set-variable value="#[%dw 2.0&#10;output application/java&#10;---&#10;&quot;(&quot; ++ ((payload map (&quot;'&quot; ++ $.Id ++&quot;'&quot;)) joinBy &quot;,&quot;) ++ &quot;)&quot;]" doc:name="List of record Ids" doc:id="933aa4aa-c59f-4ab7-8b27-5254f2fdf68c" variableName="IdsToCheck" />
+		<logger level="INFO" doc:name="Stamp Variabe Ids" doc:id="6fe0a160-797e-479f-8dd9-bc86d5c9da68" message="#[vars.IdsToCheck]" />
+		<batch:job jobName="batch_scope" doc:id="c001b3ac-e08f-4e42-b5e3-c4befa1ffda8" blockSize="25" >
+			<batch:process-records >
+				<batch:step name="Batch_Step" doc:id="c814b663-7249-45af-a7bd-6d791f5c3e5b" >
+					<ee:transform doc:name="Prepare each record" doc:id="7aab52df-3a0e-4f73-b384-db84c18f3c6d" >
+						<ee:message >
+							<ee:set-payload ><![CDATA[%dw 2.0
+output application/java
+---
+{
+	Id: payload.Id,
+	Orario: payload.Orario,
+	Processato: true
+		
+	}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+					<batch:aggregator doc:name="Batch Aggregator" doc:id="cd33f06b-1fdc-41d6-a9a2-b4d54e4c5874" size="25" >
+						<ee:transform doc:name="Map to Salesforce fields" doc:id="54d34ba0-c2da-4282-8740-38e293891d62" >
+							<ee:message >
+								<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload map (item) -> {
+	Id: item.Id as String,
+	Processed__c: item.Processato,
+	Payment_Date__c: item.Orario as Date
+}]]></ee:set-payload>
+							</ee:message>
+						</ee:transform>
+						<salesforce:create-job-bulk-api-v2 objectType="Expense_Report__c" operation="update" doc:name="Update Expense Report Records" doc:id="3839f650-b105-4aaf-aa2b-e4eaad06d3bc" config-ref="Salesforce_Config" />
+					</batch:aggregator>
+				</batch:step>
+			</batch:process-records>
+			<batch:on-complete >
+				<set-variable value="#[%dw 2.0&#10;output text/plain&#10;---&#10;&quot;Hi, \n the monthly expense reports' reimburses have been processed. \n&quot;++&#10;payload.processedRecords as String ++ &quot; records have been processed. \n&quot; ++ &#10;payload.successfulRecords as String ++ &quot; records succeeded. \n&quot; ++ &#10;payload.failedRecords as String ++ &quot; records failed. \n&quot; ++ &#10;&quot;You'll find a detailed report about the payments' processing as attachment.&quot;]" doc:name="Create email body" doc:id="9df81c64-f422-4c95-8829-c9db592f50f2" variableName="email_body" />
+				<flow-ref doc:name="system_check_updates" doc:id="2a5d4c39-57a6-4484-9a34-5521c750e9e7" name="system_check_update" />
+				<ee:transform doc:name="create csv for attachment" doc:id="3eff4858-78d1-45e3-b6c9-61384f8dc564" >
+					<ee:message >
+						<ee:set-payload ><![CDATA[%dw 2.0
+output application/csv
+---
+payload
+]]></ee:set-payload>
+					</ee:message>
+				</ee:transform>
+				<email:send doc:name="payments results" doc:id="94db8f1e-920e-4653-91d6-c68cab8dd696" config-ref="Email_SMTP" fromAddress="asia.scargiali@gmail.com" subject='#["Processed Expense Reports Payments "]' >
+					<email:to-addresses >
+						<email:to-address value="hotelvisioture@gmail.com" />
+					</email:to-addresses>
+					<email:body >
+						<email:content ><![CDATA[#[vars.email_body]]]></email:content>
+					</email:body>
+					<email:attachments ><![CDATA[#[{
+	'PaymentsResults.csv' : payload
+}]]]></email:attachments>
+				</email:send>
+			</batch:on-complete>
+		</batch:job>
+		<logger level="INFO" doc:name="batch scope results" doc:id="ddae744e-0849-4029-8cbc-295325a16920" message="#[payload]" />
+	</flow>
+	<flow name="system_check_update" doc:id="34e92052-0eb2-4ee8-b7ad-daf07c2028b8" >
+		<ee:transform doc:name="wait 2mins" doc:id="a0e4c40e-c28a-4f4f-96dd-d9c137a68dd5" >
+			<ee:message >
+				<ee:set-payload ><![CDATA[%dw 2.0
+import * from dw::Runtime
+output application/java
+---
+wait (payload, 120000)]]></ee:set-payload>
+			</ee:message>
+		</ee:transform>
+		<salesforce:query-all doc:name="Updated Expense Report Records" doc:id="f1d1dc71-8e9b-4c63-85b2-5c5c553c737e" config-ref="Salesforce_Config" >
+			<salesforce:salesforce-query ><![CDATA[SELECT Id, Name, Processed__C, Payment_Date__c FROM Expense_Report__c WHERE Id in :list]]></salesforce:salesforce-query>
+			<salesforce:parameters ><![CDATA[#[output application/java
+---
+{
+	list: vars.IdsToCheck
+}]]]></salesforce:parameters>
+		</salesforce:query-all>
+	</flow>
+	
+</mule>

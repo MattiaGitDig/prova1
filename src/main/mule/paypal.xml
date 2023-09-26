@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<mule xmlns:validation="http://www.mulesoft.org/schema/mule/validation" xmlns:ee="http://www.mulesoft.org/schema/mule/ee/core"
+	xmlns:http="http://www.mulesoft.org/schema/mule/http"
+	xmlns="http://www.mulesoft.org/schema/mule/core" xmlns:doc="http://www.mulesoft.org/schema/mule/documentation" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.mulesoft.org/schema/mule/core http://www.mulesoft.org/schema/mule/core/current/mule.xsd
+http://www.mulesoft.org/schema/mule/http http://www.mulesoft.org/schema/mule/http/current/mule-http.xsd
+http://www.mulesoft.org/schema/mule/ee/core http://www.mulesoft.org/schema/mule/ee/core/current/mule-ee.xsd
+http://www.mulesoft.org/schema/mule/validation http://www.mulesoft.org/schema/mule/validation/current/mule-validation.xsd">
+	<http:listener-config name="HTTP_ApexCallout_Listener_config" doc:name="HTTP Listener config" doc:id="77652a0b-c360-4346-8a29-9f5ed6a2a3d6" >
+		<http:listener-connection host="0.0.0.0" port="8081"/>
+	</http:listener-config>
+	<flow name="experience_main_flow" doc:id="7491a13d-9d31-4769-89f8-3b2ea226d340" >
+		<http:listener doc:name="Salesforce Listener" doc:id="8be649aa-0753-4535-962f-bfaac08aa090" config-ref="HTTP_ApexCallout_Listener_config" path="/payment" outputMimeType="application/json"/>
+		<foreach doc:name="For Each record check" doc:id="2961ce2c-fc92-46ef-b4fa-3d7ba154e2fc" >
+			<validation:is-not-null doc:name="Amount can not be null" doc:id="2ebfdb2e-5fd3-43e1-8150-4bfba558236d" value="#[payload.amount]" message="PAYMENT:INVALID_AMOUNT(null)" />
+			<validation:is-not-null doc:name="Email can not be null" doc:id="be3bd192-232e-4334-b0c8-b68cddccfb33" value="#[payload.email]" message="PAYMENT:INVALID_EMAIL(null)" />
+		</foreach>
+		<ee:transform doc:name='Decrypt email and change payload "keys"' doc:id="c96b80c8-86d8-49d5-b5a2-f07ad401bc9d">
+						<ee:message>
+							<ee:set-payload><![CDATA[%dw 2.0
+import java!payment_sales::decrypting
+output application/json
+---
+payload map (item) -> {
+	
+	Id: item.expense as String,
+	Amount: item.amount,
+	Email: decrypting::decrypt(item.email)
+}]]></ee:set-payload>
+						</ee:message>
+					</ee:transform>
+		<flow-ref doc:name="Call Process API" doc:id="e1d96b6f-ff76-47c0-ab8a-0a8a970fbc19" name="process_main_flow"/>
+	</flow>
+</mule>
